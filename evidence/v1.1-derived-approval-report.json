@@ -1,0 +1,161 @@
+{
+  "id": "8112c09a-fdf1-4ce0-9009-786cced93ac4",
+  "jobId": "b60c1038-a36a-44dd-9f1c-7f025da65adc",
+  "generatedAt": "2026-10-21T19:30:00.000Z",
+  "engineVersion": "audit-log-agent/1.1.0-saved-evidence-derivation",
+  "readOnly": true,
+  "wallet": "0x15ddce897d76ac39c188ade4d353711a60395315",
+  "network": {
+    "name": "Pharos Pacific Mainnet",
+    "chainId": 1672,
+    "nativeSymbol": "PROS",
+    "rpcUrl": "https://rpc.pharos.xyz",
+    "mcpUrl": "https://mcp.pharos.xyz/mcp",
+    "officialExplorerUrl": "https://www.pharosscan.xyz",
+    "explorerUrl": "https://pharos.exploreme.pro",
+    "indexerUrl": "https://pharos.exploreme.pro"
+  },
+  "requestedInterval": {
+    "startUtc": "2026-09-26T17:47:00.000Z",
+    "endUtc": "2026-09-26T17:50:00.000Z",
+    "semantics": "[start inclusive, end exclusive)",
+    "inclusiveEndConverted": false
+  },
+  "resolvedBlocks": {
+    "firstIncluded": {
+      "block": 18641119,
+      "timestamp": "2026-09-26T17:47:00.000Z"
+    },
+    "firstExcluded": {
+      "block": 18641329,
+      "timestamp": "2026-09-26T17:50:00.000Z"
+    },
+    "latestAtAnalysis": 20843412
+  },
+  "coverage": {
+    "status": "PARTIAL",
+    "categories": {
+      "ordinaryTransactions": "UNKNOWN",
+      "tokenTransfers": "UNKNOWN",
+      "approvals": "COMPLETE",
+      "receiptsAndGas": "UNKNOWN",
+      "nativeInternalTransfers": "UNKNOWN"
+    },
+    "failures": [
+      {
+        "source": "transactions",
+        "error": "transactions exceeded the 20-page safety limit; choose a shorter or less dense interval."
+      },
+      {
+        "source": "token-transfers",
+        "error": "token-transfers exceeded the 20-page safety limit; choose a shorter or less dense interval."
+      }
+    ]
+  },
+  "summary": {
+    "uniqueTransactions": 1,
+    "successful": 1,
+    "failed": 0,
+    "unknownStatus": 0,
+    "unknownOrUnclassified": 0,
+    "warning": "Category transaction counts overlap and must not be added to derive unique transaction count.",
+    "ambiguousSwapCandidates": 0
+  },
+  "categoryTotals": {
+    "transfersIn": [],
+    "transfersOut": [],
+    "swaps": {
+      "transactionCount": 0,
+      "inputs": [],
+      "outputs": []
+    },
+    "approvals": {
+      "eventCount": 1,
+      "uniqueSpenders": 1,
+      "grantsOrChanges": 0,
+      "revocations": 0,
+      "unlimited": 1
+    },
+    "contractInteractions": {
+      "transactionCount": 0,
+      "destinations": []
+    },
+    "gas": {
+      "status": "UNKNOWN",
+      "symbol": "PROS",
+      "decimals": 18,
+      "raw": null,
+      "formatted": null,
+      "knownTransactionCount": 0,
+      "unavailableTransactionCount": 1,
+      "unavailableTransactionHashes": [
+        "0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea"
+      ],
+      "attribution": "The v1.0.1 aggregate is preserved in the source report, but its per-transaction historical fee fields were not retained and cannot be revalidated from saved evidence alone."
+    }
+  },
+  "notableTransactions": [
+    {
+      "transactionHash": "0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea",
+      "category": "APPROVAL",
+      "reason": "Unlimited token approval",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea"
+    }
+  ],
+  "activities": [
+    {
+      "id": "1672:0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea:0",
+      "category": "APPROVAL",
+      "status": "SUCCESS",
+      "transactionHash": "0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea",
+      "blockNumber": 18641244,
+      "timestampUtc": "2026-09-26T17:48:46.000Z",
+      "logIndex": 0,
+      "assetAddress": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+      "symbol": null,
+      "decimals": null,
+      "rawAmount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+      "formattedAmount": null,
+      "direction": "PERMISSION",
+      "counterparty": "0xbf105f4ffbd3825f5433d074008b9a76237d849c",
+      "owner": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "approvalKind": "UNLIMITED_GRANT",
+      "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "classificationEvidence": "Historical Approval event; this does not assert the allowance remains active today.",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0x97b338cfc17837e963bf123e1afb07d5377b6c451c9280b88e76d82f4ada86ea"
+    }
+  ],
+  "unknownTransactions": [],
+  "sources": [
+    {
+      "name": "Official Pharos Chain MCP",
+      "url": "https://mcp.pharos.xyz/mcp",
+      "purpose": "network, exact blocks, transactions, receipts, bytecode"
+    },
+    {
+      "name": "Pharos Explorer API",
+      "url": "https://pharos.exploreme.pro/api-docs",
+      "purpose": "supplementary paginated address-history discovery"
+    },
+    {
+      "name": "Uniswap V3 pool event interface",
+      "url": "https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol",
+      "purpose": "v1.1.0 Swap-event validation contract; unavailable raw fields caused conservative declassification"
+    }
+  ],
+  "limitations": [
+    "DERIVED REPORT: computed only from the immutable v1.0.1 saved payload; no chain reads were performed.",
+    "The source payload lacks raw receipt Swap data and per-transaction gas fields, so prior swap and gas claims are not carried forward as verified v1.1.0 results.",
+    "Native internal transfers/traces are not available from the configured official MCP or indexed endpoint and are UNKNOWN, not zero.",
+    "Approval rows are historical events; current allowance is not inferred.",
+    "Unknown token metadata remains unlabeled rather than guessed.",
+    "This is an evidence-backed activity statement, not tax, accounting, compliance, or profit advice."
+  ],
+  "executiveSummary": "0x15ddce897d76ac39c188ade4d353711a60395315 had 1 unique relevant transactions in the requested UTC interval. This conservative saved-evidence derivation preserves 1 approval events and transfer evidence, verifies 0 swaps under v1.1.0, records 0 ambiguous swap candidates, and marks wallet-paid gas UNKNOWN because raw historical fee fields are absent. Coverage is PARTIAL; native internal transfers remain UNKNOWN.",
+  "derivedFrom": {
+    "reportId": "86eaa9e2-762f-495e-b16a-e6f36ffed8ce",
+    "engineVersion": "audit-log-agent/1.0.1",
+    "method": "Conservative derivation from persisted report only; no chain reads."
+  },
+  "ambiguousSwaps": []
+}

@@ -8,7 +8,7 @@ export function answerFollowUp(report, question) {
   if (/largest|outgoing/.test(q)) return { answer: report.activities.filter(row => row.category === "TRANSFER" && row.direction === "OUT").sort((a,b)=>BigInt(a.rawAmount)===BigInt(b.rawAmount)?0:BigInt(a.rawAmount)>BigInt(b.rawAmount)?-1:1).slice(0,5), grounding: "Persisted transfer rows" };
   if (/approval|spender/.test(q)) return { answer: report.activities.filter(row => row.category === "APPROVAL"), grounding: "Persisted Approval-event rows" };
   if (/protocol|contract|interact/.test(q)) return { answer: report.activities.filter(row => row.category === "CONTRACT_INTERACTION"), grounding: "Persisted wallet-initiated contract calls" };
-  if (/gas/.test(q)) return { answer: report.categoryTotals.gas, grounding: "Persisted receipt gasUsed × effectiveGasPrice" };
+  if (/gas/.test(q)) return { answer: report.categoryTotals.gas, grounding: "Persisted known fee subtotal: receipt gasUsed × receipt effectiveGasPrice, or the same historical transaction gasPrice when effectiveGasPrice is absent" };
   if (/unknown|unclassified/.test(q)) return { answer: { hashes: report.unknownTransactions, coverage: report.coverage }, grounding: "Persisted classification and coverage" };
   return { answer: "Choose a grounded follow-up about outgoing transfers, approvals, contract interactions, gas, or unclassified activity.", grounding: "Supported deterministic follow-ups" };
 }

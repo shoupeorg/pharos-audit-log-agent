@@ -32,9 +32,9 @@ npm run cli -- --request "Summarize 0x... from 2026-10-20T20:20:00Z to 2026-10-2
 3. Use the attributed Pharos Explorer indexed API only for paginated address-history discovery. Reconcile discovered hashes with official MCP transaction, receipt, bytecode, and block reads.
 4. Never infer ordinary/native history from ERC-20 logs alone. If a source is unavailable, mark coverage `UNKNOWN` or `PARTIAL`, never zero.
 5. Treat each transaction as a container for overlapping activities. Do not add category transaction counts to obtain the unique transaction total.
-6. Classify swaps only when a successful receipt contains a Swap event and the wallet has both token input and output in that transaction.
+6. Classify swaps only for an explicitly configured pool/router when the emitter and five-word Uniswap V3 event structure are valid, the recipient is the wallet, and the signed token0/token1 deltas uniquely match exact direct wallet↔pool transfers. Do not include unrelated transaction transfers in swap totals.
 7. Treat Approval amounts as historical permissions, not spending or proof of current allowance.
-8. Calculate wallet-paid gas exactly as `gasUsed × effectiveGasPrice` only when `transaction.from` is the wallet.
+8. Calculate wallet-paid gas exactly as `gasUsed × effectiveGasPrice` only when `transaction.from` is the wallet; use only that transaction's historical `gasPrice` as fallback. Missing fee fields are unavailable, not zero, and produce a partial known subtotal or `UNKNOWN`.
 9. Preserve raw integers and verified decimals. Never sum unrelated asset units.
 10. Export Markdown and CSV from the persisted report; never rerun analysis during export.
 11. Never connect a wallet, request a key, sign, approve, broadcast, deploy, or spend funds.

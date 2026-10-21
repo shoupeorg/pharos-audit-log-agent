@@ -1,6 +1,15 @@
-const ENGINE_VERSION = "audit-log-agent/1.0.1";
+const ENGINE_VERSION = "audit-log-agent/1.1.0";
 const NETWORK = { name: "Pharos Pacific Mainnet", chainId: 1672, nativeSymbol: "PROS", rpcUrl: "https://rpc.pharos.xyz", mcpUrl: "https://mcp.pharos.xyz/mcp", officialExplorerUrl: "https://www.pharosscan.xyz", explorerUrl: "https://pharos.exploreme.pro", indexerUrl: "https://pharos.exploreme.pro" };
 const SWAP_TOPIC = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67";
+const SUPPORTED_SWAP_POOLS = Object.freeze({
+  "0x912c9ade24d44d8922f0866d8dcb079f1363f647": Object.freeze({
+    protocol: "Uniswap V3-compatible",
+    token0: "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+    token1: "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+    routers: Object.freeze(["0x869379f2d9df67891e0159dd2520dc1681908f10"]),
+    eventReference: "https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol"
+  })
+});
 const LIMITS = { maxIntervalMs: 24 * 60 * 60 * 1000, maxPagesPerSource: 20, maxTransactions: 120, enrichPerStep: 8 };
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -14,7 +23,7 @@ function answerFollowUp(report, question) {
   if (/largest|outgoing/.test(q)) return { answer: report.activities.filter(row => row.category === "TRANSFER" && row.direction === "OUT").sort((a,b)=>BigInt(a.rawAmount)===BigInt(b.rawAmount)?0:BigInt(a.rawAmount)>BigInt(b.rawAmount)?-1:1).slice(0,5), grounding: "Persisted transfer rows" };
   if (/approval|spender/.test(q)) return { answer: report.activities.filter(row => row.category === "APPROVAL"), grounding: "Persisted Approval-event rows" };
   if (/protocol|contract|interact/.test(q)) return { answer: report.activities.filter(row => row.category === "CONTRACT_INTERACTION"), grounding: "Persisted wallet-initiated contract calls" };
-  if (/gas/.test(q)) return { answer: report.categoryTotals.gas, grounding: "Persisted receipt gasUsed × effectiveGasPrice" };
+  if (/gas/.test(q)) return { answer: report.categoryTotals.gas, grounding: "Persisted known fee subtotal: receipt gasUsed × receipt effectiveGasPrice, or the same historical transaction gasPrice when effectiveGasPrice is absent" };
   if (/unknown|unclassified/.test(q)) return { answer: { hashes: report.unknownTransactions, coverage: report.coverage }, grounding: "Persisted classification and coverage" };
   return { answer: "Choose a grounded follow-up about outgoing transfers, approvals, contract interactions, gas, or unclassified activity.", grounding: "Supported deterministic follow-ups" };
 }
@@ -123,13 +132,58 @@ const explorer = hash => `${NETWORK.explorerUrl}/tx/${hash}`;
 const serializeTotals = map => [...map.values()].map(item => ({ ...item, formatted: formatUnits(item.raw, item.decimals) }));
 const eventId = item => `${NETWORK.chainId}:${lower(item.tx_hash)}:${Number(item.log_index)}`;
 
-function buildReport(state, now = new Date()) {
+const addressTopic = topic => /^0x[0-9a-f]{64}$/i.test(topic || "") ? `0x${topic.slice(-40).toLowerCase()}` : null;
+const signed256 = word => {
+  const value = BigInt(`0x${word}`), sign = 1n << 255n;
+  return value & sign ? value - (1n << 256n) : value;
+};
+function decodeSupportedSwap(log, detail, wallet, transfers, supportedPools) {
+  const venue = lower(log.address), pool = supportedPools[venue];
+  if (!pool) return { reason: `Swap topic was emitted by unsupported contract ${venue || "unknown"}.` };
+  if (!pool.routers.includes(lower(detail.transaction?.to))) return { reason: "Transaction destination is not a configured router for the supported pool." };
+  if (!Array.isArray(log.topics) || log.topics.length !== 3 || lower(log.topics[0]) !== SWAP_TOPIC) return { reason: "Swap event indexed-topic structure is invalid." };
+  const recipient = addressTopic(log.topics[2]), sender = addressTopic(log.topics[1]);
+  if (!recipient || !sender) return { reason: "Swap event sender/recipient topics are malformed." };
+  if (recipient !== wallet) return { reason: "Swap event recipient is not the analyzed wallet." };
+  const data = String(log.data || "");
+  if (!/^0x[0-9a-f]{320}$/i.test(data)) return { reason: "Swap event data does not match the five-word Uniswap V3 ABI." };
+  const words = data.slice(2).match(/.{64}/g), amount0 = signed256(words[0]), amount1 = signed256(words[1]);
+  if (amount0 === 0n || amount1 === 0n || (amount0 > 0n) === (amount1 > 0n)) return { reason: "Swap event token deltas do not contain one pool input and one pool output." };
+  const legs = [{ token: lower(pool.token0), delta: amount0 }, { token: lower(pool.token1), delta: amount1 }];
+  const matched = legs.map(leg => {
+    const expected = (leg.delta < 0n ? -leg.delta : leg.delta).toString();
+    const rows = transfers.filter(row => row.assetAddress === leg.token && row.rawAmount === expected && (
+      leg.delta > 0n
+        ? row.direction === "OUT" && row.tokenEventTo === venue
+        : row.direction === "IN" && row.tokenEventFrom === venue
+    ));
+    return { leg, rows };
+  });
+  if (matched.some(item => item.rows.length !== 1)) return { reason: "Direct wallet/pool transfer amounts do not uniquely match the decoded pool deltas." };
+  return {
+    value: {
+      venue, protocol: pool.protocol, sender, recipient, eventReference: pool.eventReference,
+      input: matched.find(item => item.leg.delta > 0n).rows[0],
+      output: matched.find(item => item.leg.delta < 0n).rows[0],
+      amount0: amount0.toString(), amount1: amount1.toString()
+    }
+  };
+}
+
+const validInteger = value => (typeof value === "string" && /^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value)) || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+const sourceCoverage = (discovery, name) => {
+  if (!discovery.results?.[name]) return "UNKNOWN";
+  return discovery.results[name].complete === true && !(discovery.failures || []).some(item => item.source === name) ? "COMPLETE" : "PARTIAL";
+};
+
+function buildReport(state, now = new Date(), options = {}) {
   const wallet = lower(state.wallet), discovery = state.discovery, enriched = state.enriched || {};
   const transfers = discovery.results?.["token-transfers"]?.observations || [];
   const approvals = discovery.results?.approvals?.observations || [];
   const transactions = discovery.results?.transactions?.observations || [];
   const metadata = new Map(transfers.map(item => [lower(item.token), { assetAddress: lower(item.token), symbol: item.token_symbol || null, decimals: Number.isInteger(item.token_decimals) ? item.token_decimals : null }]));
-  const inTotals = new Map(), outTotals = new Map(), swapIn = new Map(), swapOut = new Map(), activities = [], categoriesByHash = new Map();
+  const supportedPools = options.supportedSwapPools || SUPPORTED_SWAP_POOLS;
+  const inTotals = new Map(), outTotals = new Map(), swapIn = new Map(), swapOut = new Map(), activities = [], categoriesByHash = new Map(), ambiguousSwaps = [];
   const mark = (hash, category) => { const set = categoriesByHash.get(hash) || new Set(); set.add(category); categoriesByHash.set(hash, set); };
   const push = row => { activities.push(row); mark(row.transactionHash, row.category); };
 
@@ -170,27 +224,47 @@ function buildReport(state, now = new Date()) {
 
   for (const [hash, detail] of Object.entries(enriched)) {
     if (!ok(detail) || lower(detail.transaction?.from) !== wallet) continue;
-    const hasSwapEvent = detail.receipt.logs?.some(log => lower(log.topics?.[0]) === SWAP_TOPIC);
+    const swapLogs = detail.receipt.logs?.filter(log => lower(log.topics?.[0]) === SWAP_TOPIC) || [];
     const related = activities.filter(row => row.category === "TRANSFER" && row.transactionHash === hash && row.movementKind !== "SELF_TRANSFER");
-    const inputs = related.filter(row => row.direction === "OUT"), outputs = related.filter(row => row.direction === "IN");
-    if (!hasSwapEvent || !inputs.length || !outputs.length) continue;
+    if (!swapLogs.length) continue;
+    const decoded = swapLogs.map(log => ({ log, ...decodeSupportedSwap(log, detail, wallet, related, supportedPools) }));
+    const verified = decoded.filter(item => item.value);
+    if (verified.length !== 1) {
+      ambiguousSwaps.push({ transactionHash: hash, reasons: decoded.map(item => item.reason || "More than one supported Swap event matched; transaction-level attribution is ambiguous."), explorerUrl: explorer(hash) });
+      continue;
+    }
+    const { log, value } = verified[0], inputs = [value.input], outputs = [value.output];
     for (const row of inputs) addExact(swapIn, row.assetAddress, row.rawAmount, { assetAddress: row.assetAddress, symbol: row.symbol, decimals: row.decimals });
     for (const row of outputs) addExact(swapOut, row.assetAddress, row.rawAmount, { assetAddress: row.assetAddress, symbol: row.symbol, decimals: row.decimals });
-    const swapLog = detail.receipt.logs.find(log => lower(log.topics?.[0]) === SWAP_TOPIC);
-    push({ id: `${NETWORK.chainId}:${hash}:swap`, category: "SWAP", status: "SUCCESS", transactionHash: hash, blockNumber: Number(BigInt(detail.transaction.blockNumber)), timestampUtc: related[0].timestampUtc, logIndex: Number(BigInt(swapLog.logIndex)), venue: lower(swapLog.address), inputs: inputs.map(({ assetAddress, symbol, decimals, rawAmount, formattedAmount }) => ({ assetAddress, symbol, decimals, rawAmount, formattedAmount })), outputs: outputs.map(({ assetAddress, symbol, decimals, rawAmount, formattedAmount }) => ({ assetAddress, symbol, decimals, rawAmount, formattedAmount })), transactionFrom: wallet, rawAmount: null, classificationEvidence: "Successful receipt contains a documented Swap event plus wallet-linked token input and output; one transaction is one wallet swap even if multi-hop.", explorerUrl: explorer(hash) });
+    push({ id: `${NETWORK.chainId}:${hash}:swap`, category: "SWAP", status: "SUCCESS", transactionHash: hash, blockNumber: Number(BigInt(detail.transaction.blockNumber)), timestampUtc: related[0].timestampUtc, logIndex: Number(BigInt(log.logIndex)), venue: value.venue, protocol: value.protocol, eventSender: value.sender, eventRecipient: value.recipient, poolAmount0: value.amount0, poolAmount1: value.amount1, inputs: inputs.map(({ assetAddress, symbol, decimals, rawAmount, formattedAmount }) => ({ assetAddress, symbol, decimals, rawAmount, formattedAmount })), outputs: outputs.map(({ assetAddress, symbol, decimals, rawAmount, formattedAmount }) => ({ assetAddress, symbol, decimals, rawAmount, formattedAmount })), transactionFrom: wallet, rawAmount: null, classificationEvidence: `Configured ${value.protocol} pool emitted a structurally valid Swap event; recipient is the wallet and exact signed pool deltas uniquely match direct wallet/pool token transfers. ABI: ${value.eventReference}`, explorerUrl: explorer(hash) });
   }
 
-  const hashes = new Set(state.hashes || Object.keys(enriched)); let success = 0, failed = 0, unknownStatus = 0, gasRaw = 0n;
-  for (const hash of hashes) { const detail = enriched[hash]; if (!detail?.receipt) { unknownStatus += 1; continue; } if (ok(detail)) success += 1; else failed += 1; if (lower(detail.transaction?.from) === wallet) gasRaw += BigInt(detail.receipt.gasUsed) * BigInt(detail.receipt.effectiveGasPrice || detail.transaction.gasPrice || "0x0"); }
+  const hashes = new Set(state.hashes || Object.keys(enriched)); let success = 0, failed = 0, unknownStatus = 0, gasRaw = 0n, knownGasTransactions = 0;
+  const unavailableGasTransactionHashes = [];
+  for (const hash of hashes) {
+    const detail = enriched[hash];
+    if (!detail?.receipt) { unknownStatus += 1; unavailableGasTransactionHashes.push(hash); continue; }
+    if (ok(detail)) success += 1; else failed += 1;
+    if (!detail.transaction) { unavailableGasTransactionHashes.push(hash); continue; }
+    if (lower(detail.transaction?.from) !== wallet) continue;
+    const gasUsed = detail.receipt.gasUsed, historicalGasPrice = detail.receipt.effectiveGasPrice ?? detail.transaction?.gasPrice;
+    if (!validInteger(gasUsed) || !validInteger(historicalGasPrice)) { unavailableGasTransactionHashes.push(hash); continue; }
+    gasRaw += BigInt(gasUsed) * BigInt(historicalGasPrice); knownGasTransactions += 1;
+  }
   const approvalRows = activities.filter(row => row.category === "APPROVAL"), contractRows = activities.filter(row => row.category === "CONTRACT_INTERACTION"), swapRows = activities.filter(row => row.category === "SWAP");
-  const unknownHashes = [...hashes].filter(hash => !categoriesByHash.has(hash));
+  const unknownHashes = [...new Set([...hashes].filter(hash => !categoriesByHash.has(hash)).concat(ambiguousSwaps.map(item => item.transactionHash)))];
+  const transactionsCoverage = sourceCoverage(discovery, "transactions");
+  const allDetailsComplete = [...hashes].every(hash => enriched[hash]?.transaction && enriched[hash]?.receipt);
+  const receiptEvidencePresent = Object.values(enriched).some(item => item.receipt);
+  const receiptsAndGas = transactionsCoverage === "COMPLETE" && allDetailsComplete && unavailableGasTransactionHashes.length === 0 ? "COMPLETE" : receiptEvidencePresent ? "PARTIAL" : "UNKNOWN";
+  const gasStatus = transactionsCoverage === "COMPLETE" && allDetailsComplete && unavailableGasTransactionHashes.length === 0 ? "COMPLETE" : knownGasTransactions > 0 ? "PARTIAL" : "UNKNOWN";
   const coverage = {
     status: "PARTIAL",
     categories: {
-      ordinaryTransactions: discovery.results?.transactions ? "COMPLETE" : "UNKNOWN",
-      tokenTransfers: discovery.results?.["token-transfers"] ? "COMPLETE" : "UNKNOWN",
-      approvals: discovery.results?.approvals ? "COMPLETE" : "UNKNOWN",
-      receiptsAndGas: Object.values(enriched).every(item => item.receipt) ? "COMPLETE" : "PARTIAL",
+      ordinaryTransactions: transactionsCoverage,
+      tokenTransfers: sourceCoverage(discovery, "token-transfers"),
+      approvals: sourceCoverage(discovery, "approvals"),
+      receiptsAndGas,
       nativeInternalTransfers: "UNKNOWN"
     }, failures: [...(discovery.failures || []), ...Object.values(enriched).flatMap(item => item.errors || []).map(error => ({ source: "Official Pharos Chain MCP", error }))]
   };
@@ -199,10 +273,10 @@ function buildReport(state, now = new Date()) {
     swaps: { transactionCount: swapRows.length, inputs: serializeTotals(swapIn), outputs: serializeTotals(swapOut) },
     approvals: { eventCount: approvalRows.length, uniqueSpenders: new Set(approvalRows.map(row => row.counterparty)).size, grantsOrChanges: approvalRows.filter(row => row.approvalKind === "GRANT_OR_CHANGE").length, revocations: approvalRows.filter(row => row.approvalKind === "REVOKE").length, unlimited: approvalRows.filter(row => row.approvalKind === "UNLIMITED_GRANT").length },
     contractInteractions: { transactionCount: new Set(contractRows.map(row => row.transactionHash)).size, destinations: [...new Set(contractRows.map(row => row.destination))] },
-    gas: { symbol: NETWORK.nativeSymbol, decimals: 18, raw: gasRaw.toString(), formatted: formatUnits(gasRaw, 18), attribution: "Only receipts whose transaction.from equals the wallet." }
+    gas: { status: gasStatus, symbol: NETWORK.nativeSymbol, decimals: 18, raw: gasStatus === "UNKNOWN" ? null : gasRaw.toString(), formatted: gasStatus === "UNKNOWN" ? null : formatUnits(gasRaw, 18), knownTransactionCount: knownGasTransactions, unavailableTransactionCount: unavailableGasTransactionHashes.length, unavailableTransactionHashes: unavailableGasTransactionHashes, attribution: "Known subtotal uses receipt gasUsed × receipt effectiveGasPrice, falling back only to the same historical transaction gasPrice. Only transaction.from equal to the wallet is attributed." }
   };
   const notable = activities.filter(row => row.category === "SWAP" || row.approvalKind === "UNLIMITED_GRANT" || row.status === "FAILED").slice(0, 12).map(row => ({ transactionHash: row.transactionHash, category: row.category, reason: row.category === "SWAP" ? "Verified swap event" : row.approvalKind === "UNLIMITED_GRANT" ? "Unlimited token approval" : "Failed wallet transaction", explorerUrl: row.explorerUrl }));
-  const report = { id: state.reportId || crypto.randomUUID(), jobId: state.jobId, generatedAt: now.toISOString(), engineVersion: ENGINE_VERSION, readOnly: true, wallet, network: NETWORK, requestedInterval: { startUtc: state.range.startUtc, endUtc: state.range.endUtc, semantics: state.range.semantics, inclusiveEndConverted: Boolean(state.range.inclusiveEndConverted) }, resolvedBlocks: state.boundaries, coverage, summary: { uniqueTransactions: hashes.size, successful: success, failed, unknownStatus, unknownOrUnclassified: unknownHashes.length, warning: "Category transaction counts overlap and must not be added to derive unique transaction count." }, categoryTotals, notableTransactions: notable, activities: activities.sort((a, b) => a.blockNumber - b.blockNumber || (a.logIndex ?? -1) - (b.logIndex ?? -1)), unknownTransactions: unknownHashes, sources: [{ name: "Official Pharos Chain MCP", url: NETWORK.mcpUrl, purpose: "network, exact blocks, transactions, receipts, bytecode" }, { name: "Pharos Explorer API", url: `${NETWORK.indexerUrl}/api-docs`, purpose: "supplementary paginated address-history discovery" }], limitations: ["Native internal transfers/traces are not available from the configured official MCP or indexed endpoint and are UNKNOWN, not zero.", "Approval rows are historical events; current allowance is not inferred.", "Unknown token metadata remains unlabeled rather than guessed.", "This is an evidence-backed activity statement, not tax, accounting, compliance, or profit advice."] };
+  const report = { id: state.reportId || crypto.randomUUID(), jobId: state.jobId, generatedAt: now.toISOString(), engineVersion: ENGINE_VERSION, readOnly: true, wallet, network: NETWORK, requestedInterval: { startUtc: state.range.startUtc, endUtc: state.range.endUtc, semantics: state.range.semantics, inclusiveEndConverted: Boolean(state.range.inclusiveEndConverted) }, resolvedBlocks: state.boundaries, coverage, summary: { uniqueTransactions: hashes.size, successful: success, failed, unknownStatus, unknownOrUnclassified: unknownHashes.length, ambiguousSwapCandidates: ambiguousSwaps.length, warning: "Category transaction counts overlap and must not be added to derive unique transaction count." }, categoryTotals, notableTransactions: notable, activities: activities.sort((a, b) => a.blockNumber - b.blockNumber || (a.logIndex ?? -1) - (b.logIndex ?? -1)), ambiguousSwaps, unknownTransactions: unknownHashes, sources: [{ name: "Official Pharos Chain MCP", url: NETWORK.mcpUrl, purpose: "network, exact blocks, transactions, receipts, bytecode" }, { name: "Pharos Explorer API", url: `${NETWORK.indexerUrl}/api-docs`, purpose: "supplementary paginated address-history discovery" }, { name: "Uniswap V3 pool event interface", url: "https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol", purpose: "documented Swap event fields and signed pool-balance deltas" }], limitations: ["Native internal transfers/traces are not available from the configured official MCP or indexed endpoint and are UNKNOWN, not zero.", "Swap verification is limited to explicitly configured pools/routers and requires exact decoded event-to-transfer reconciliation; other candidates remain unclassified.", ...(gasStatus === "COMPLETE" ? [] : ["Wallet-paid gas is a known subtotal or UNKNOWN because one or more historical gas fields or transaction-discovery records were unavailable."]), "Approval rows are historical events; current allowance is not inferred.", "Unknown token metadata remains unlabeled rather than guessed.", "This is an evidence-backed activity statement, not tax, accounting, compliance, or profit advice."] };
   report.executiveSummary = `${wallet} had ${hashes.size} unique relevant transactions in the requested UTC interval: ${success} successful, ${failed} failed, and ${unknownStatus} with unavailable receipt status. The report identified ${swapRows.length} verified swaps, ${approvalRows.length} approval events, and ${categoryTotals.contractInteractions.transactionCount} wallet-initiated contract interactions. Coverage is ${coverage.status}; native internal transfers remain UNKNOWN.`;
   return report;
 }
@@ -292,7 +366,9 @@ const totalsList = rows => rows.length ? rows.map(row => `- ${row.formatted ?? r
 function reportMarkdown(report) {
   const coverage = Object.entries(report.coverage.categories).map(([name, status]) => `- ${name}: **${status}**`).join("\n");
   const notable = report.notableTransactions.length ? report.notableTransactions.map(item => `- [${item.transactionHash}](${item.explorerUrl}) — ${item.category}: ${item.reason}`).join("\n") : "- None selected by the deterministic notable-transaction rules.";
-  return `# Pharos Wallet Statement\n\nGenerated: ${report.generatedAt}\n\n- Wallet: \`${report.wallet}\`\n- Network: ${report.network.name} (chain ${report.network.chainId})\n- Requested UTC interval: ${report.requestedInterval.startUtc} to ${report.requestedInterval.endUtc} ${report.requestedInterval.semantics}\n- Resolved blocks: ${report.resolvedBlocks.firstIncluded.block} (included) to ${report.resolvedBlocks.firstExcluded.block} (excluded)\n- Coverage: **${report.coverage.status}**\n- Engine: \`${report.engineVersion}\`\n\n## Executive summary\n\n${report.executiveSummary}\n\nCategory transaction counts overlap; do not add them to derive the unique transaction total.\n\n## Transaction totals\n\n- Unique relevant transactions: ${report.summary.uniqueTransactions}\n- Successful: ${report.summary.successful}\n- Failed: ${report.summary.failed}\n- Unknown receipt status: ${report.summary.unknownStatus}\n- Unknown or unclassified: ${report.summary.unknownOrUnclassified}\n- Wallet-paid gas: ${report.categoryTotals.gas.formatted} ${report.categoryTotals.gas.symbol} (raw ${report.categoryTotals.gas.raw})\n\n## Transfers in\n\n${totalsList(report.categoryTotals.transfersIn)}\n\n## Transfers out\n\n${totalsList(report.categoryTotals.transfersOut)}\n\n## Swaps\n\n- Verified swap transactions: ${report.categoryTotals.swaps.transactionCount}\n- Inputs:\n${totalsList(report.categoryTotals.swaps.inputs)}\n- Outputs:\n${totalsList(report.categoryTotals.swaps.outputs)}\n\n## Approvals\n\n- Events: ${report.categoryTotals.approvals.eventCount}\n- Unique spenders: ${report.categoryTotals.approvals.uniqueSpenders}\n- Grants/changes: ${report.categoryTotals.approvals.grantsOrChanges}\n- Revocations: ${report.categoryTotals.approvals.revocations}\n- Unlimited grants: ${report.categoryTotals.approvals.unlimited}\n\nApproval amounts are permissions, not money spent; the events do not assert current allowance.\n\n## Contract interactions\n\n- Wallet-initiated contract transactions: ${report.categoryTotals.contractInteractions.transactionCount}\n- Verified destinations: ${report.categoryTotals.contractInteractions.destinations.join(", ") || "None"}\n\n## Notable transactions\n\n${notable}\n\n## Coverage\n\n${coverage}\n\n## Limitations\n\n${report.limitations.map(text => `- ${text}`).join("\n")}\n\n## Sources\n\n${report.sources.map(source => `- [${source.name}](${source.url}) — ${source.purpose}`).join("\n")}\n`;
+  const gas = report.categoryTotals.gas, gasStatus = gas.status || "HISTORICAL_UNVERSIONED";
+  const gasLine = gasStatus === "UNKNOWN" ? `UNKNOWN ${gas.symbol}; no available historical fee fields` : `${gas.formatted} ${gas.symbol} (raw ${gas.raw}; ${gasStatus === "COMPLETE" ? "complete total" : gasStatus === "PARTIAL" ? "known subtotal" : "historical report"}; ${gas.unavailableTransactionCount ?? 0} unavailable transactions)`;
+  return `# Pharos Wallet Statement\n\nGenerated: ${report.generatedAt}\n\n- Wallet: \`${report.wallet}\`\n- Network: ${report.network.name} (chain ${report.network.chainId})\n- Requested UTC interval: ${report.requestedInterval.startUtc} to ${report.requestedInterval.endUtc} ${report.requestedInterval.semantics}\n- Resolved blocks: ${report.resolvedBlocks.firstIncluded.block} (included) to ${report.resolvedBlocks.firstExcluded.block} (excluded)\n- Coverage: **${report.coverage.status}**\n- Engine: \`${report.engineVersion}\`\n\n## Executive summary\n\n${report.executiveSummary}\n\nCategory transaction counts overlap; do not add them to derive the unique transaction total.\n\n## Transaction totals\n\n- Unique relevant transactions: ${report.summary.uniqueTransactions}\n- Successful: ${report.summary.successful}\n- Failed: ${report.summary.failed}\n- Unknown receipt status: ${report.summary.unknownStatus}\n- Unknown or unclassified: ${report.summary.unknownOrUnclassified}\n- Wallet-paid gas: ${gasLine}\n\n## Transfers in\n\n${totalsList(report.categoryTotals.transfersIn)}\n\n## Transfers out\n\n${totalsList(report.categoryTotals.transfersOut)}\n\n## Swaps\n\n- Verified swap transactions: ${report.categoryTotals.swaps.transactionCount}\n- Ambiguous swap candidates: ${report.summary.ambiguousSwapCandidates ?? 0}\n- Inputs:\n${totalsList(report.categoryTotals.swaps.inputs)}\n- Outputs:\n${totalsList(report.categoryTotals.swaps.outputs)}\n\n## Approvals\n\n- Events: ${report.categoryTotals.approvals.eventCount}\n- Unique spenders: ${report.categoryTotals.approvals.uniqueSpenders}\n- Grants/changes: ${report.categoryTotals.approvals.grantsOrChanges}\n- Revocations: ${report.categoryTotals.approvals.revocations}\n- Unlimited grants: ${report.categoryTotals.approvals.unlimited}\n\nApproval amounts are permissions, not money spent; the events do not assert current allowance.\n\n## Contract interactions\n\n- Wallet-initiated contract transactions: ${report.categoryTotals.contractInteractions.transactionCount}\n- Verified destinations: ${report.categoryTotals.contractInteractions.destinations.join(", ") || "None"}\n\n## Notable transactions\n\n${notable}\n\n## Coverage\n\n${coverage}\n\n## Limitations\n\n${report.limitations.map(text => `- ${text}`).join("\n")}\n\n## Sources\n\n${report.sources.map(source => `- [${source.name}](${source.url}) — ${source.purpose}`).join("\n")}\n`;
 }
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
