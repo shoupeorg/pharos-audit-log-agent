@@ -4,7 +4,7 @@ An evidence-backed, read-only wallet statement for Pharos Pacific Mainnet. Enter
 
 ## Live app
 
-Deployment URL is added after the first verified deployment.
+[https://pharos-audit-log-agent.shoupeorg.workers.dev](https://pharos-audit-log-agent.shoupeorg.workers.dev)
 
 ## Safety and scope
 

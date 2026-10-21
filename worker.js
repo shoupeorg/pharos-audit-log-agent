@@ -1,4 +1,4 @@
-const ENGINE_VERSION = "audit-log-agent/1.0.0";
+const ENGINE_VERSION = "audit-log-agent/1.0.1";
 const NETWORK = { name: "Pharos Pacific Mainnet", chainId: 1672, nativeSymbol: "PROS", rpcUrl: "https://rpc.pharos.xyz", mcpUrl: "https://mcp.pharos.xyz/mcp", officialExplorerUrl: "https://www.pharosscan.xyz", explorerUrl: "https://pharos.exploreme.pro", indexerUrl: "https://pharos.exploreme.pro" };
 const SWAP_TOPIC = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67";
 const LIMITS = { maxIntervalMs: 24 * 60 * 60 * 1000, maxPagesPerSource: 20, maxTransactions: 120, enrichPerStep: 8 };
@@ -185,7 +185,7 @@ function buildReport(state, now = new Date()) {
   const approvalRows = activities.filter(row => row.category === "APPROVAL"), contractRows = activities.filter(row => row.category === "CONTRACT_INTERACTION"), swapRows = activities.filter(row => row.category === "SWAP");
   const unknownHashes = [...hashes].filter(hash => !categoriesByHash.has(hash));
   const coverage = {
-    status: discovery.complete && Object.values(enriched).every(item => item.transaction && item.receipt) ? "COMPLETE" : "PARTIAL",
+    status: "PARTIAL",
     categories: {
       ordinaryTransactions: discovery.results?.transactions ? "COMPLETE" : "UNKNOWN",
       tokenTransfers: discovery.results?.["token-transfers"] ? "COMPLETE" : "UNKNOWN",
