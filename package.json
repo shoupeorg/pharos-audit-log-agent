@@ -1,0 +1,23 @@
+{
+  "name": "pharos-audit-log-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "pharos-audit": "./src/cli.js" },
+  "scripts": {
+    "test": "node --test",
+    "build": "rollup -c",
+    "check": "npm test && npm run build",
+    "cli": "node src/cli.js",
+    "deploy": "npm run build && wrangler deploy --no-bundle",
+    "db:migrate:remote": "wrangler d1 migrations apply pharos-audit-log-agent --remote"
+  },
+  "dependencies": { "@modelcontextprotocol/sdk": "1.32.1" },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "29.0.0",
+    "@rollup/plugin-json": "6.1.0",
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "rollup": "4.64.9",
+    "wrangler": "4.151.1"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "pharos-audit-log-agent",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "pharos-audit-log-agent", "database_id": "abbc1a7a-3a8c-42cf-b339-ecd2304eef44", "migrations_dir": "migrations" }],
+  "observability": { "enabled": true }
+}

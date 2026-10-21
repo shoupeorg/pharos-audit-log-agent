@@ -1,0 +1,27 @@
+{
+  "kind": "BOUNDED_READ_ONLY_FEASIBILITY_PROBE",
+  "capturedAt": "2026-10-21T14:30:00.000Z",
+  "network": { "name": "Pharos", "chainId": 1672, "nativeSymbol": "PROS", "rpc": "https://rpc.pharos.xyz" },
+  "officialMcp": {
+    "endpoint": "https://mcp.pharos.xyz/mcp",
+    "verifiedCapabilities": ["timestamped block retrieval", "transaction by hash", "receipt with logs", "bounded get_logs", "bytecode"],
+    "missingCapability": "No address-history enumeration method for ordinary transactions or native transfers.",
+    "logWindow": "1,000 blocks inclusive"
+  },
+  "supplementaryIndexer": {
+    "endpoint": "https://pharos.exploreme.pro/api-docs",
+    "verifiedCapabilities": ["address transactions", "address token transfers", "address approvals", "50-row pagination via x-next-cursor"],
+    "attribution": "Pharos Explorer indexed history API"
+  },
+  "realProbe": {
+    "wallet": "0x15ddce897d76ac39c188ade4d353711a60395315",
+    "transaction": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+    "block": 20776323,
+    "timestampUtc": "2026-10-20T20:21:02.000Z",
+    "receiptStatus": "0x1",
+    "receiptLogCount": 3,
+    "swapTopicObserved": true,
+    "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315"
+  },
+  "knownLimitation": "Native internal transfers/traces remain UNKNOWN."
+}
