@@ -66,9 +66,11 @@ Engine `audit-log-agent/1.1.0` introduces strict pool-event reconciliation and e
 
 Versioned `evidence/v1.1-derived-*-report.*` artifacts are conservative, no-chain-read derivations of those saved payloads. They retain supported transfer/approval rows, declassify the old swap as ambiguous, and mark gas `UNKNOWN`. The original `evidence/live-*-report.*` files remain unchanged.
 
+The separately persisted `audit-log-agent/1.1.0` live report [`b62de151-d7d4-4b97-a3e9-c27deb49a8f5`](https://pharos-audit-log-agent.shoupeorg.workers.dev/api/reports/b62de151-d7d4-4b97-a3e9-c27deb49a8f5) supplies the receipt evidence that the historical payload lacked. It verifies the configured router/pool Swap event, reconciles its exact signed deltas to the two wallet/pool token movements, and records complete historical gas. Its JSON, Markdown and CSV are preserved as `evidence/v1.1-live-swap-report.*`; a corrected live approval report is likewise preserved as `evidence/v1.1-live-approval-report.*`. Earlier original and derived artifacts remain unchanged.
+
 ## Demonstrations
 
-- Swap/transfer/contract example: public wallet `0x15ddce897d76ac39c188ade4d353711a60395315`, `2026-10-20T20:20:00Z` to `2026-10-20T20:22:00Z`.
-- Approval example: the same public wallet, `2026-09-26T17:47:00Z` to `2026-09-26T17:50:00Z`.
+- Corrected swap/transfer/contract example: public wallet `0x15ddce897d76ac39c188ade4d353711a60395315`, `2026-10-20T20:20:00Z` to `2026-10-20T20:22:00Z`. The default **LOAD REAL SWAP EXAMPLE** button loads this exact interval; the verified saved report is [`b62de151-d7d4-4b97-a3e9-c27deb49a8f5`](https://pharos-audit-log-agent.shoupeorg.workers.dev/api/reports/b62de151-d7d4-4b97-a3e9-c27deb49a8f5).
+- Corrected approval example: the same public wallet, `2026-09-26T17:47:00Z` to `2026-09-26T17:50:00Z`. The default **LOAD REAL APPROVAL EXAMPLE** button loads this exact interval; report [`a02bdc03-a610-49a7-b223-225afc297679`](https://pharos-audit-log-agent.shoupeorg.workers.dev/api/reports/a02bdc03-a610-49a7-b223-225afc297679) verifies one unlimited approval. Approval discovery is complete, while ordinary transaction and token-transfer discovery hit their explicit pagination safety bound, so overall coverage and gas are correctly labeled partial.
 
 These are public-chain examples and are not claimed to belong to the project author or user.

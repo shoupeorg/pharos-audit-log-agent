@@ -1,0 +1,258 @@
+{
+  "id": "b62de151-d7d4-4b97-a3e9-c27deb49a8f5",
+  "jobId": "9e7699ff-f766-4c53-8f8d-4461f2a147e1",
+  "generatedAt": "2026-10-21T22:00:07.079Z",
+  "engineVersion": "audit-log-agent/1.1.0",
+  "readOnly": true,
+  "wallet": "0x15ddce897d76ac39c188ade4d353711a60395315",
+  "network": {
+    "name": "Pharos Pacific Mainnet",
+    "chainId": 1672,
+    "nativeSymbol": "PROS",
+    "rpcUrl": "https://rpc.pharos.xyz",
+    "mcpUrl": "https://mcp.pharos.xyz/mcp",
+    "officialExplorerUrl": "https://www.pharosscan.xyz",
+    "explorerUrl": "https://pharos.exploreme.pro",
+    "indexerUrl": "https://pharos.exploreme.pro"
+  },
+  "requestedInterval": {
+    "startUtc": "2026-10-20T20:20:00.000Z",
+    "endUtc": "2026-10-20T20:22:00.000Z",
+    "semantics": "[start inclusive, end exclusive)",
+    "inclusiveEndConverted": false
+  },
+  "resolvedBlocks": {
+    "firstIncluded": {
+      "block": 20776264,
+      "timestamp": "2026-10-20T20:20:00.000Z"
+    },
+    "firstExcluded": {
+      "block": 20776384,
+      "timestamp": "2026-10-20T20:22:01.000Z"
+    },
+    "latestAtAnalysis": 20872062
+  },
+  "coverage": {
+    "status": "PARTIAL",
+    "categories": {
+      "ordinaryTransactions": "COMPLETE",
+      "tokenTransfers": "COMPLETE",
+      "approvals": "COMPLETE",
+      "receiptsAndGas": "COMPLETE",
+      "nativeInternalTransfers": "UNKNOWN"
+    },
+    "failures": []
+  },
+  "summary": {
+    "uniqueTransactions": 1,
+    "successful": 1,
+    "failed": 0,
+    "unknownStatus": 0,
+    "unknownOrUnclassified": 0,
+    "ambiguousSwapCandidates": 0,
+    "warning": "Category transaction counts overlap and must not be added to derive unique transaction count."
+  },
+  "categoryTotals": {
+    "transfersIn": [
+      {
+        "assetAddress": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+        "symbol": "WPROS",
+        "decimals": 18,
+        "raw": "405504132963356908833",
+        "count": 1,
+        "formatted": "405.504132963356908833"
+      }
+    ],
+    "transfersOut": [
+      {
+        "assetAddress": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+        "symbol": "USDC",
+        "decimals": 6,
+        "raw": "253325339",
+        "count": 1,
+        "formatted": "253.325339"
+      }
+    ],
+    "swaps": {
+      "transactionCount": 1,
+      "inputs": [
+        {
+          "assetAddress": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+          "symbol": "USDC",
+          "decimals": 6,
+          "raw": "253325339",
+          "count": 1,
+          "formatted": "253.325339"
+        }
+      ],
+      "outputs": [
+        {
+          "assetAddress": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+          "symbol": "WPROS",
+          "decimals": 18,
+          "raw": "405504132963356908833",
+          "count": 1,
+          "formatted": "405.504132963356908833"
+        }
+      ]
+    },
+    "approvals": {
+      "eventCount": 0,
+      "uniqueSpenders": 0,
+      "grantsOrChanges": 0,
+      "revocations": 0,
+      "unlimited": 0
+    },
+    "contractInteractions": {
+      "transactionCount": 1,
+      "destinations": [
+        "0x869379f2d9df67891e0159dd2520dc1681908f10"
+      ]
+    },
+    "gas": {
+      "status": "COMPLETE",
+      "symbol": "PROS",
+      "decimals": 18,
+      "raw": "1945095000000000",
+      "formatted": "0.001945095",
+      "knownTransactionCount": 1,
+      "unavailableTransactionCount": 0,
+      "unavailableTransactionHashes": [],
+      "attribution": "Known subtotal uses receipt gasUsed × receipt effectiveGasPrice, falling back only to the same historical transaction gasPrice. Only transaction.from equal to the wallet is attributed."
+    }
+  },
+  "notableTransactions": [
+    {
+      "transactionHash": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+      "category": "SWAP",
+      "reason": "Verified swap event",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399"
+    }
+  ],
+  "activities": [
+    {
+      "id": "1672:0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399:call",
+      "category": "CONTRACT_INTERACTION",
+      "status": "SUCCESS",
+      "transactionHash": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+      "blockNumber": 20776323,
+      "timestampUtc": "2026-10-20T20:21:02.000Z",
+      "logIndex": null,
+      "destination": "0x869379f2d9df67891e0159dd2520dc1681908f10",
+      "methodSelector": "0x9c1f7cd9",
+      "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "rawAmount": null,
+      "classificationEvidence": "Wallet is transaction.from and destination had deployed bytecode at the transaction block.",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399"
+    },
+    {
+      "id": "1672:0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399:0",
+      "category": "TRANSFER",
+      "status": "SUCCESS",
+      "transactionHash": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+      "blockNumber": 20776323,
+      "timestampUtc": "2026-10-20T20:21:02.000Z",
+      "logIndex": 0,
+      "assetAddress": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+      "symbol": "WPROS",
+      "decimals": 18,
+      "rawAmount": "405504132963356908833",
+      "formattedAmount": "405.504132963356908833",
+      "direction": "IN",
+      "counterparty": "0x912c9ade24d44d8922f0866d8dcb079f1363f647",
+      "tokenEventFrom": "0x912c9ade24d44d8922f0866d8dcb079f1363f647",
+      "tokenEventTo": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "movementKind": "STANDARD",
+      "classificationEvidence": "Indexed token transfer reconciled to its transaction/receipt where available.",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399"
+    },
+    {
+      "id": "1672:0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399:1",
+      "category": "TRANSFER",
+      "status": "SUCCESS",
+      "transactionHash": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+      "blockNumber": 20776323,
+      "timestampUtc": "2026-10-20T20:21:02.000Z",
+      "logIndex": 1,
+      "assetAddress": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+      "symbol": "USDC",
+      "decimals": 6,
+      "rawAmount": "253325339",
+      "formattedAmount": "253.325339",
+      "direction": "OUT",
+      "counterparty": "0x912c9ade24d44d8922f0866d8dcb079f1363f647",
+      "tokenEventFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "tokenEventTo": "0x912c9ade24d44d8922f0866d8dcb079f1363f647",
+      "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "movementKind": "STANDARD",
+      "classificationEvidence": "Indexed token transfer reconciled to its transaction/receipt where available.",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399"
+    },
+    {
+      "id": "1672:0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399:swap",
+      "category": "SWAP",
+      "status": "SUCCESS",
+      "transactionHash": "0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399",
+      "blockNumber": 20776323,
+      "timestampUtc": "2026-10-20T20:21:02.000Z",
+      "logIndex": 2,
+      "venue": "0x912c9ade24d44d8922f0866d8dcb079f1363f647",
+      "protocol": "Uniswap V3-compatible",
+      "eventSender": "0x869379f2d9df67891e0159dd2520dc1681908f10",
+      "eventRecipient": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "poolAmount0": "-405504132963356908833",
+      "poolAmount1": "253325339",
+      "inputs": [
+        {
+          "assetAddress": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+          "symbol": "USDC",
+          "decimals": 6,
+          "rawAmount": "253325339",
+          "formattedAmount": "253.325339"
+        }
+      ],
+      "outputs": [
+        {
+          "assetAddress": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+          "symbol": "WPROS",
+          "decimals": 18,
+          "rawAmount": "405504132963356908833",
+          "formattedAmount": "405.504132963356908833"
+        }
+      ],
+      "transactionFrom": "0x15ddce897d76ac39c188ade4d353711a60395315",
+      "rawAmount": null,
+      "classificationEvidence": "Configured Uniswap V3-compatible pool emitted a structurally valid Swap event; recipient is the wallet and exact signed pool deltas uniquely match direct wallet/pool token transfers. ABI: https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol",
+      "explorerUrl": "https://pharos.exploreme.pro/tx/0xa2d0fd2a0289352badaf4f151c46dfd807de12d7f43b4008f236e4ca7bfe6399"
+    }
+  ],
+  "ambiguousSwaps": [],
+  "unknownTransactions": [],
+  "sources": [
+    {
+      "name": "Official Pharos Chain MCP",
+      "url": "https://mcp.pharos.xyz/mcp",
+      "purpose": "network, exact blocks, transactions, receipts, bytecode"
+    },
+    {
+      "name": "Pharos Explorer API",
+      "url": "https://pharos.exploreme.pro/api-docs",
+      "purpose": "supplementary paginated address-history discovery"
+    },
+    {
+      "name": "Uniswap V3 pool event interface",
+      "url": "https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol",
+      "purpose": "documented Swap event fields and signed pool-balance deltas"
+    }
+  ],
+  "limitations": [
+    "Native internal transfers/traces are not available from the configured official MCP or indexed endpoint and are UNKNOWN, not zero.",
+    "Swap verification is limited to explicitly configured pools/routers and requires exact decoded event-to-transfer reconciliation; other candidates remain unclassified.",
+    "Approval rows are historical events; current allowance is not inferred.",
+    "Unknown token metadata remains unlabeled rather than guessed.",
+    "This is an evidence-backed activity statement, not tax, accounting, compliance, or profit advice."
+  ],
+  "executiveSummary": "0x15ddce897d76ac39c188ade4d353711a60395315 had 1 unique relevant transactions in the requested UTC interval: 1 successful, 0 failed, and 0 with unavailable receipt status. The report identified 1 verified swaps, 0 approval events, and 1 wallet-initiated contract interactions. Coverage is PARTIAL; native internal transfers remain UNKNOWN.",
+  "historical": true
+}
